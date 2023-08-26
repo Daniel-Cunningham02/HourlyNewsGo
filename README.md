@@ -7,6 +7,14 @@
 * Gin Gonic
 * Google's UUID library
 * NewsAPI(REST API)
+#### What has been implemented so far
+[ ] Create Key
+[ ] NewsAPI wrapper
+[ ] Sends response
+[ ] Admin privileges
+[ ] Custom Query
+
+
 
 
 ## Development and Design
