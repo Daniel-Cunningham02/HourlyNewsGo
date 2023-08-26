@@ -1,4 +1,4 @@
-# Hourly News Go
+# Hourly News Go (WIP)
 ## About
 #### Purpose of the project
 1. To provide a way to request news in JSON format that refreshes with news every hour between 7am and 8pm
