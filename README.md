@@ -8,11 +8,14 @@
 * Google's UUID library
 * NewsAPI(REST API)
 #### What has been implemented so far
-[ ] Create Key
-[ ] NewsAPI wrapper
-[ ] Sends response
-[ ] Admin privileges
-[ ] Custom Query
+- [X] Create Key
+- [X] NewsAPI wrapper
+- [X] Sends response
+- [X] Searches news every hours
+- [X] Caches news and stores in local variable
+- [ ] Caches news and stores it throughout the day for custom non-admin query (Resends news from a previous point without searching again).
+- [ ] Admin privileges
+- [ ] Custom Query
 
 
 

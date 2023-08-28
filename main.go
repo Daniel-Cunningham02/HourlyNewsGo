@@ -2,6 +2,7 @@ package main
 
 import (
 	"HourlyNewsGo/newsapiscrape"
+	"container/list"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -14,12 +15,14 @@ import (
 )
 
 func main() {
-	usermap := make(map[string]string) //ip to UUID
-	//adminmap := vector.New(0)
+	usermap := make(map[string]uuid.UUID) //ip to UUID
+	adminlist := list.New()
+	manager := Manager{status: ready, news: newsapiscrape.News{}}
 	fmt.Println("Setup\n----------")
 	fmt.Println("Starting setup")
-	router := Setup(usermap)
+	router := Setup(usermap, adminlist, &manager)
 	fmt.Println("Setup Done\n----------")
+	startSearch(&manager)
 	router.Run(":8080") /*
 		search := newsapiscrape.Search{}
 		search.SetKey("f8b7c43989b44e07af5c870fed7944ec")
@@ -29,42 +32,33 @@ func main() {
 		}*/
 }
 
-func sendNews(usermap map[string]string) gin.HandlerFunc {
+func sendNews(usermap map[string]uuid.UUID, manager *Manager) gin.HandlerFunc {
+	t := time.Now()
+	if t.Hour() > 7 && t.Hour() < 20 && t.Minute() == 59 {
+		startSearch(manager)
+	}
 	fn := func(reqcontext *gin.Context) {
 		key := reqcontext.Param("key")
 		if _, contains := usermap[key]; contains {
-			search := newsapiscrape.Search{}
-			search.SetKey("f8b7c43989b44e07af5c870fed7944ec")
-			news, err := search.Search()
-			if err != nil {
-				os.Exit(1) // just for testing right now
-			}
-			reqcontext.JSON(http.StatusOK, news.Articles)
+			reqcontext.JSON(http.StatusOK, manager.news.Articles)
 		}
 	}
 	return fn
 }
 
-func query(usermap map[string]string) gin.HandlerFunc {
+func createapikey(usermap map[string]uuid.UUID) gin.HandlerFunc {
 	fn := func(reqcontext *gin.Context) {
-		// make sure user is an admin
-	}
-	return fn
-}
-
-func createapikey(usermap map[string]string) gin.HandlerFunc {
-	fn := func(reqcontext *gin.Context) {
-		target := uuid.New().String()
+		target := uuid.New()
 		key := reqcontext.ClientIP()
 		if _, contain := usermap[key]; !contain {
 			usermap[key] = target
 		}
-		reqcontext.String(http.StatusOK, usermap[key])
+		reqcontext.String(http.StatusOK, usermap[key].String())
 	}
 	return gin.HandlerFunc(fn)
 }
 
-/*func shutdown(usermap map[string]bool) gin.HandlerFunc {
+/*func shutdown(usermap map[string]uuid.UUID) gin.HandlerFunc {
 	fn := func(reqcontext *gin.Context) {
 		if value, contains := adminmap[idmap[reqcontext.ClientIP()]]; contains {
 			if value == true {
@@ -83,7 +77,7 @@ func createapikey(usermap map[string]string) gin.HandlerFunc {
 	return fn
 }*/
 
-func createJsonFromMap(usermap map[string]string) []byte {
+func createJsonFromMap(usermap map[string]uuid.UUID) []byte {
 	json, err := json.Marshal(usermap)
 	if err != nil {
 		fmt.Println("Error when creating json")
@@ -91,20 +85,28 @@ func createJsonFromMap(usermap map[string]string) []byte {
 	return json
 }
 
-func Setup(usermap map[string]string) *gin.Engine {
+func Setup(usermap map[string]uuid.UUID, adminlist *list.List, manager *Manager) *gin.Engine {
+	var newCache bool
 	cache := "./cache" // Set Cache Directory string for easy access
 	fmt.Println("Finding Cache")
 	cacheDirInfo, openError := os.Stat(cache)
 	if openError != nil || cacheDirInfo == nil {
 		CreateCache(cache)
+		newCache = true
+	}
+	if newCache != true {
+		readSuccess := ReadAdminList(*adminlist)
+		if readSuccess != true {
+			println("Failed to read admin list!")
+		}
 	}
 	t := time.Now()
 	date := time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), 0, 0, time.Now().Location())
 
 	os.WriteFile(filepath.Join(cache, "server.json"), []byte("{\n \"date\": \""+date.String()+"\"\n}"), 0666)
 	router := gin.Default()
-	router.GET("/news?=:key", sendNews(usermap))
-	router.POST("/query?=:querytype", query(usermap))
+	router.GET("/news?=:key", sendNews(usermap, manager))
+	router.POST("/query?=:querytype", query(usermap, *adminlist))
 	router.GET("/key", createapikey(usermap))
 	//router.GET("/quit", shutdown(usermap))
 	return router
@@ -120,6 +122,10 @@ func CreateCache(cacheDir string) {
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1) // for testing
+	}
+	_, adminFileErr := os.Create(filepath.Join(cacheDir, "admin.json"))
+	if adminFileErr != nil {
+		println("Admin File Not Created")
 	}
 	fmt.Println("Cache created")
 

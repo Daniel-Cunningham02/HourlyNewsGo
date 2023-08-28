@@ -22,7 +22,7 @@ type article struct {
 	Content       string `json:'content'`
 }
 
-type news struct {
+type News struct {
 	Status       string    `json:'status'`
 	TotalResults int       `json:'totalResults'`
 	Articles     []article `json:'articles'`
@@ -33,45 +33,45 @@ type news struct {
 // exported functions (public)
 type Search struct {
 	key   string
-	value news
+	value News
 }
 
 func (s *Search) SetKey(apikey string) {
 	s.key = apikey
-	s.value = news{}
+	s.value = News{}
 }
 
-func (s Search) GetNews() *news {
+func (s Search) GetNews() *News {
 	return &s.value
 }
 
-func (s Search) Search() (*news, error) {
+func (s Search) Search() (*News, error) {
 	client := &http.Client{}
-	getRequestUrl := "https://newsapi.org/v2/top-headlines?country=us&apiKey=" + s.key
+	getRequestUrl := "https://Newsapi.org/v2/top-headlines?country=us&apiKey=" + s.key
 	response, err := client.Get(getRequestUrl)
 	if err != nil {
-		return &news{}, err
+		return &News{}, err
 	}
 	resBody, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		return &news{}, err
+		return &News{}, err
 	}
 	err = json.Unmarshal(resBody, &s.value)
 	if err != nil {
-		return &news{}, err
+		return &News{}, err
 	}
 
 	return &s.value, err
 }
 
-func (n news) GetStatus() string {
+func (n News) GetStatus() string {
 	return n.Status
 }
 
-func (n news) GetResultCount() int {
+func (n News) GetResultCount() int {
 	return n.TotalResults
 }
 
-func (n news) GetResultTuple() (string, int) {
+func (n News) GetResultTuple() (string, int) {
 	return n.Status, n.TotalResults
 }
