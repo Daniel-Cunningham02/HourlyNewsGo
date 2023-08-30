@@ -20,7 +20,7 @@ func main() {
 	manager := Manager{status: ready, news: newsapiscrape.News{}}
 	fmt.Println("Setup\n----------")
 	fmt.Println("Starting setup")
-	router := Setup(usermap, adminlist, &manager)
+	router := Setup(&usermap, adminlist, &manager)
 	fmt.Println("Setup Done\n----------")
 	startSearch(&manager)
 	router.Run(":8080") /*
@@ -58,24 +58,31 @@ func createapikey(usermap map[string]uuid.UUID) gin.HandlerFunc {
 	return gin.HandlerFunc(fn)
 }
 
-/*func shutdown(usermap map[string]uuid.UUID) gin.HandlerFunc {
+func shutdown(usermap *map[string]uuid.UUID, adminlist *list.List) gin.HandlerFunc {
 	fn := func(reqcontext *gin.Context) {
-		if value, contains := adminmap[idmap[reqcontext.ClientIP()]]; contains {
-			if value == true {
-				file, err := os.Create(filepath.Join("./cache", "user.json"))
-				if err != nil {
-					fmt.Println("Error creating file")
-				}
-				json := createJsonFromMap(idmap)
-				os.WriteFile(file.Name(), json, 0666)
-				reqcontext.String(http.StatusOK, "Server quit")
-				return
+		id := reqcontext.Param("key")
+		var contains bool
+		i := adminlist.Front()
+		for i != adminlist.Back().Next() {
+			if i.Value == id {
+				contains = true
+				break
 			}
+			i = i.Next()
+		}
+		if contains == true {
+			var response string
+			WriteAdminList(adminlist, &response)
+			GenerateStatistics(usermap, &response) // going to implement later
+			reqcontext.String(http.StatusOK, response)
+			os.Exit(0)
+			return
 		}
 		reqcontext.Status(http.StatusForbidden)
 	}
+
 	return fn
-}*/
+}
 
 func createJsonFromMap(usermap map[string]uuid.UUID) []byte {
 	json, err := json.Marshal(usermap)
@@ -85,7 +92,7 @@ func createJsonFromMap(usermap map[string]uuid.UUID) []byte {
 	return json
 }
 
-func Setup(usermap map[string]uuid.UUID, adminlist *list.List, manager *Manager) *gin.Engine {
+func Setup(usermap *map[string]uuid.UUID, adminlist *list.List, manager *Manager) *gin.Engine {
 	var newCache bool
 	cache := "./cache" // Set Cache Directory string for easy access
 	fmt.Println("Finding Cache")
@@ -105,10 +112,10 @@ func Setup(usermap map[string]uuid.UUID, adminlist *list.List, manager *Manager)
 
 	os.WriteFile(filepath.Join(cache, "server.json"), []byte("{\n \"date\": \""+date.String()+"\"\n}"), 0666)
 	router := gin.Default()
-	router.GET("/news?=:key", sendNews(usermap, manager))
-	router.POST("/query?=:querytype", query(usermap, *adminlist))
-	router.GET("/key", createapikey(usermap))
-	//router.GET("/quit", shutdown(usermap))
+	router.GET("/news?=:key", sendNews(*usermap, manager))
+	router.POST("/query?=:querytype", query(*usermap, *adminlist))
+	router.PUT("/key", createapikey(*usermap))
+	//router.GET("/quit?=:key", shutdown(&usermap))
 	return router
 }
 
